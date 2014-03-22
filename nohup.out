@@ -1,0 +1,15 @@
+
+** (sublime_text:3328): WARNING **: Could not connect: Connection refused
+Unable to connect to dbus
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to store changes into `/root/.local/share/recently-used.xbel', but failed: Failed to create file '/root/.local/share/recently-used.xbel.48NWCX': No such file or directory
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to set the permissions of `/root/.local/share/recently-used.xbel', but failed: No such file or directory
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to store changes into `/root/.local/share/recently-used.xbel', but failed: Failed to create file '/root/.local/share/recently-used.xbel.C5NWCX': No such file or directory
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to set the permissions of `/root/.local/share/recently-used.xbel', but failed: No such file or directory
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to store changes into `/root/.local/share/recently-used.xbel', but failed: Failed to create file '/root/.local/share/recently-used.xbel.UG5TCX': No such file or directory
+
+(sublime_text:3328): Gtk-WARNING **: Attempting to set the permissions of `/root/.local/share/recently-used.xbel', but failed: No such file or directory

@@ -1,0 +1,460 @@
+/**************************************************
+** GAME VARIABLES
+**************************************************/
+var canvas,			// Canvas DOM element
+	ctx,			// Canvas rendering context
+	localPlayer,	// Local player
+	remotePlayers,	// Remote players
+	socket;			// Socket connection
+
+var particles = [];
+var time = 0;
+var MAXWORDCOUNT = 20;
+var textArray = new Array();
+var propArray = new Array();
+var completedTextArray = new Array();
+var canvas,context,textCanvas,textContext;
+var stringBuffer = "";
+var dataInitialized = false;
+var canvasWidth, canvasHeight;
+
+
+/**************************************************
+** GAME INITIALISATION
+**************************************************/
+function init() {
+	// Initialise the local player
+	localPlayer = new Player();
+
+	// Initialise socket connection
+	socket = io.connect("http://localhost", {port: 8000, transports: ["websocket"]});
+
+	// Initialise remote players array
+	remotePlayers = [];
+
+	// Start listening for events
+	setEventHandlers();
+};
+
+$(document).ready(function(){
+	//initializeMap();
+	//initializeData();
+	init();
+	setInterval("draw()", 40);
+	setInterval("updateInfoBoard()", 250);
+});
+
+
+
+/**************************************************
+** GAME EVENT HANDLERS
+**************************************************/
+var setEventHandlers = function() {
+	// Window resize
+	///window.addEventListener("resize", onResize, false);
+
+	// Socket connection successful
+	socket.on("connect", onSocketConnected);
+
+	// Socket disconnection
+	socket.on("disconnect", onSocketDisconnect);
+
+	// New player message received
+	socket.on("new player", onNewPlayer);
+
+	//Word list message received
+	socket.on("word list", onWordList);
+
+	socket.on("start", onStart);
+
+	socket.on("opponent score", onOpponentScore);
+
+	socket.on("opponent word hit", onOpponentWordHit);
+
+	// Player removed message received
+	socket.on("remove player", onRemovePlayer);
+};
+
+// Socket connected
+function onSocketConnected() {
+	console.log("Connected to socket server");
+
+	// Send local player data to the game server
+	socket.emit("new player", {});
+};
+
+// Socket disconnected
+function onSocketDisconnect() {
+	console.log("Disconnected from socket server");
+};
+
+// New player
+function onNewPlayer(data) {
+	console.log("new player");
+	console.log("New player connected: "+data.id);
+
+	// Initialise the new player
+	var newPlayer = new Player();
+	newPlayer.id = data.id;
+
+	// Add new player to the remote players array
+	remotePlayers.push(newPlayer);
+};
+
+/*function onNewCommand(data)
+{
+	if(data == "word list")
+	{
+		initializeData(data);
+	}
+	else if(data == "start")
+	{
+
+	}
+	else if(data == "opponent score")
+	{
+
+	}
+	else if(data == "opponent word hit")
+	{
+
+	}
+};*/
+
+// Remove player
+function onRemovePlayer(data) {
+	var removePlayer = playerById(data.id);
+
+	// Player not found
+	if (!removePlayer) {
+		console.log("Player not found: "+data.id);
+		return;
+	};
+
+	// Remove player from array
+	remotePlayers.splice(remotePlayers.indexOf(removePlayer), 1);
+};
+
+/**************************************************
+** GAME HELPER FUNCTIONS
+**************************************************/
+// Find player by ID
+function playerById(id) {
+	var i;
+	for (i = 0; i < remotePlayers.length; i++) {
+		if (remotePlayers[i].id == id)
+			return remotePlayers[i];
+	};
+	
+	return false;
+};
+
+
+function onWordList(url)
+
+{
+	var req = $.getJSON(url,function(data){
+	    for (var i = 0; i < data.length; i++) {
+	    	textArray.push(data[i]);
+			var startPosY = -(Math.random()*400);
+			var textWidth = context.measureText(data[i]).width*2;
+			var startPosX = (Math.random()*canvasWidth);
+			if(startPosX>(canvasWidth-textWidth))
+				var startPosX = canvasWidth*0.5-textWidth;
+			if(startPosX<=0)
+				startPosX = 5;
+			var speed = Math.random()*10+5;
+			var posAndSpeed = [startPosX,startPosY,speed];
+			var tempArray = new Array(2);
+			var foundArray = [false,false,0]; //completed,startsWith,startLocation
+			tempArray[0] = posAndSpeed;
+			tempArray[1] = foundArray;
+			propArray.push(tempArray);
+	    }
+	    dataInitialized = true;		
+	});
+};
+
+function onStart(data)
+{
+	return;
+};
+
+function onOpponentScore(data)
+{
+	return;
+};
+
+function onOpponentWordHit(data)
+{
+	return;
+};
+
+function initializeMap() {
+	 canvas = document.getElementById("mainCanvas");
+	 canvasWidth = canvas.width;
+	 canvasHeight = canvas.height;
+
+	 context = canvas.getContext("2d");
+	 context.scale(2,2);
+	 //context.fillStyle = "#0000ff";
+	context.font = "13pt Georgia,  Sans-Serif";
+	textCanvas = document.getElementById("textCanvas");
+	textContext = textCanvas.getContext("2d");
+	textContext.scale(1,2);
+	textContext.font = "15pt Georgia,  Sans-Serif";
+}
+
+window.onload = initializeMap;
+
+function draw() {
+	if(!dataInitialized)
+		return;
+	var wordCount = 0;
+	context.clearRect(0,0,canvas.width,canvas.height);
+	for (var i=0; i<particles.length; i++)
+	{
+		var particle = particles[i];
+		particle.update(40);
+		particle.draw(context);
+	}
+	for(var i=0;(i<textArray.length) && (wordCount<MAXWORDCOUNT);i++)
+	{
+		var text = textArray[i];
+		var beginFrom = 0;
+		var beginOffset = 0;
+		if(propArray[i][1][0])
+		{
+			context.fillStyle = "#00ff00";
+			context.fillText(text, propArray[i][0][0]/2, propArray[i][0][1]/2);	
+		}
+		else if(propArray[i][1][1])
+		{
+			context.fillStyle = "#ff0000";
+			context.fillText(stringBuffer, propArray[i][0][0]/2, propArray[i][0][1]/2);	
+			beginFrom = stringBuffer.length;
+			beginOffset = context.measureText(stringBuffer).width;
+			context.fillStyle = "#000000";
+			context.fillText(text.substring(beginFrom), propArray[i][0][0]/2 + beginOffset, propArray[i][0][1]/2);
+		}
+		else
+		{
+			context.fillStyle = "#000000";
+			context.fillText(text, propArray[i][0][0]/2 , propArray[i][0][1]/2);
+		}
+		propArray[i][0][1] += propArray[i][0][2]/2; 
+		wordCount++;
+	}
+	updateWords();
+}
+
+function updateWords(){
+	for(var i=0;i<textArray.length;i++){
+		if(propArray[i][1][0]){
+			var x = propArray[i][0][0] + (context.measureText(textArray[i]).width);
+			//createExplosion(x,propArray[i][0][1], "#525252");
+			//createExplosion(x,propArray[i][0][1], "#FFA318");
+			createExplosion(x,propArray[i][0][1], "#ff0000");
+			createExplosion(x,propArray[i][0][1], "#00ff00");
+			createExplosion(x,propArray[i][0][1], "#0000ff");
+			completedTextArray.push([textArray.splice(i,1),propArray.splice(i,1)]);
+		}
+		else{
+			var textPosY = propArray[i][0][1];
+			if((canvasHeight)<textPosY)
+			{
+				//propArray[i][0][1] = -(Math.random()*400);
+				propArray[i][0][1] = -20;
+			}
+		}
+	}
+}
+
+document.onkeypress= function(event) {
+	//var key_code = event.keyCode;
+	//console.log(event || window.event);
+	processKey(event);
+}
+
+function processKey(e)
+{
+	var key_code = event.keyCode;
+	//console.log(key_code);
+	checkWords(stringBuffer,String.fromCharCode(key_code));
+	stringBuffer +=String.fromCharCode(key_code);
+	textContext.clearRect(0,0,textCanvas.width,textCanvas.height);
+	textContext.fillText(stringBuffer,0,textCanvas.height/6);
+}
+
+function checkWords(word,newChar)
+{
+	var hitNewWord = false;
+	var hitNewChar = false;
+	var wordCompleted = false;
+	var newWord = word+newChar;
+	for(var i=0;i<textArray.length;i++)
+	{
+		if(!propArray[i][1][0])
+		{
+			var currentText = textArray[i];
+			if(currentText == newWord)
+			{
+				propArray[i][1][0] = true;
+				propArray[i][1][1] = false;
+				wordCompleted = true;
+				hitNewWord = true;
+			}
+			else if(currentText.startsWith(newWord))
+			{
+				hitNewWord = true;
+				propArray[i][1][1] = true;
+				propArray[i][1][2] = newWord.length;
+			}
+			else if(!hitNewWord && currentText.startsWith(newChar) && stringBuffer.length == 0)
+			{
+				hitNewChar = true;
+				propArray[i][1][1] = true;
+				propArray[i][1][2] = newChar.length;			
+			}
+			else
+			{
+				propArray[i][1][1] = false;
+				propArray[i][1][2] = 0		
+			}
+		}
+	}
+	if(!hitNewWord)
+	{
+		stringBuffer = "";
+	}
+	else if(hitNewWord && !hitNewChar)
+	{
+		return newWord;
+	}
+	else if(hitNewChar)
+	{
+		return newChar;
+	}
+	else 
+	{
+		"";
+	}
+}
+if (typeof String.prototype.startsWith != 'function') {
+  String.prototype.startsWith = function (str){
+    return this.slice(0, str.length) == str;
+  };
+}
+
+$(function(){
+    /*
+     * this swallows backspace keys on any non-input element.
+     * stops backspace -> back
+     */
+    var rx = /INPUT|SELECT|TEXTAREA/i;
+    $(document).bind("keydown keypress", function(e){
+        if( e.which == 8 ){ // 8 == backspace
+            if(!rx.test(e.target.tagName) || e.target.disabled || e.target.readOnly ){
+                e.preventDefault();
+            }
+        }
+    });
+});
+
+function updateInfoBoard()
+{
+	time += 250;
+	var text = "Completed: "+completedTextArray.length+"\n";
+	text += "Remaining: "+textArray.length+"\n";
+	text += "Time: "+Math.round(time/1000) +" seconds\n";
+	document.getElementById("statArea").value = text;
+}
+
+/*
+ * A single explosion particle
+ */
+
+function Particle ()
+{
+	this.scale = 1.0;
+	this.x = 0;
+	this.y = 0;
+	this.radius = 20;
+	this.color = "#000";
+	this.velocityX = 0;
+	this.velocityY = 0;
+	this.scaleSpeed = 0.5;
+	this.update = function(ms)
+	{
+		// shrinking
+		this.scale -= this.scaleSpeed * ms / 1000.0;
+		if (this.scale <= 0)
+		{
+			this.scale = 0;
+		}
+		// moving away from explosion center
+		this.x += this.velocityX * ms/1000.0;
+		this.y += this.velocityY * ms/1000.0;
+	};
+	this.draw = function(context)
+	{
+		// translating the 2D context to the particle coordinates
+		context.save();
+		context.translate(this.x, this.y);
+		context.scale(this.scale, this.scale);
+		// drawing a filled circle in the particle's local space
+		context.beginPath();
+		context.arc(0, 0, this.radius, 0, Math.PI*2, true);
+		context.closePath();
+		context.fillStyle = this.color;
+		context.fill();
+		context.restore();
+	};
+}
+
+
+
+/*
+ * Advanced Explosion effect
+ * Each particle has a different size, move speed and scale speed.
+ * 
+ * Parameters:
+ * 	x, y - explosion center
+ * 	color - particles' color
+ */
+
+function createExplosion(x, y, color)
+{
+	var minSize = 3;
+	var maxSize = 5;
+	var count = 10;
+	var minSpeed = 60.0;
+	var maxSpeed = 200.0;
+	var minScaleSpeed = 1.0;
+	var maxScaleSpeed = 3.0;
+	for (var angle=0; angle<360; angle += Math.round(360/count))
+	{
+		var particle = new Particle();
+		particle.x = x/2;
+		particle.y = y/2;
+		particle.radius = randomFloat(minSize, maxSize);
+		particle.color = color;
+		particle.scaleSpeed = randomFloat(minScaleSpeed, maxScaleSpeed);
+		var speed = randomFloat(minSpeed, maxSpeed);
+		particle.velocityX = speed * Math.cos(angle * Math.PI / 180.0);
+		particle.velocityY = speed * Math.sin(angle * Math.PI / 180.0);
+		particles.push(particle);
+	}
+}
+
+function randomFloat (min, max)
+{
+	return min + Math.random()*(max-min);
+}
+
+
+
+// code that is executed each time you press the "BOOM!" button
+
+
+
